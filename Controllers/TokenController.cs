@@ -26,7 +26,7 @@ namespace SCS.Api.Controllers
         [Route("refresh")]
         public IActionResult Refresh([FromBody] TokenApiModel tokenApiModel)
         {
-            if (tokenApiModel is null)
+            if (tokenApiModel is null || tokenApiModel.AccessToken == String.Empty || tokenApiModel.RefreshToken == String.Empty )
             {
                 return BadRequest("Invalid client request");
             }
@@ -54,7 +54,7 @@ namespace SCS.Api.Controllers
                 refreshToken = newRefreshToken
             });
         }
-        [HttpPost, Authorize]
+        [HttpDelete, Authorize]
         [Route("revoke")]
         public IActionResult Revoke()
         {
@@ -62,8 +62,9 @@ namespace SCS.Api.Controllers
             var user = _context.Users.SingleOrDefault(u => u.Username == username);
             if (user == null) return BadRequest();
             user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
             _context.SaveChanges();
-            return NoContent();
+            return Ok();
         }
     }
 

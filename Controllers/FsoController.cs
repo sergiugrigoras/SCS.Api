@@ -30,8 +30,8 @@ namespace SCS.Api.Controllers
             this._storageUrl = configuration.GetValue<string>("Storage:url");
         }
 
-        [HttpGet("getuserdriveid")]
-        public IActionResult GetUserDriveId()
+        [HttpGet("getuserdrive")]
+        public async Task<IActionResult> GetUserDriveIdAsync()
         {
             var user = _context.Users.Find(GetJti());
 
@@ -39,12 +39,34 @@ namespace SCS.Api.Controllers
             {
                 return NotFound();
             }
-            return Ok(new
+            else
             {
-                id = user.DriveId
-            });
+                var fso = await _context.FileSystemObjects.FindAsync(user.DriveId);
+                return Ok(new Fso(fso));
+            }
         }
+        [HttpGet("fullpath/{id}")]
+        public async Task<IActionResult> GetFullPathAsync(int id)
+        {
+            FileSystemObject fso = await _context.FileSystemObjects.FindAsync(id);
+            if (fso == null)
+            {
+                return NotFound();
+            }
+            if (!await IsOwnerAsync(id))
+            {
+                return Forbid();
+            }
 
+            var parser = fso;
+            var fullPathList = new List<Fso>();
+            while (parser != null)
+            {
+                fullPathList.Insert(0, new Fso(parser));
+                parser = await _context.FileSystemObjects.FindAsync(parser.ParentId);
+            }
+            return new JsonResult(fullPathList);
+        }
         [HttpGet("folder/{id}")]
         public async Task<IActionResult> GetFolderContentAsync(int id)
         {

@@ -41,7 +41,6 @@ namespace SCS.Api.Controllers
                 return Unauthorized();
             }
 
-
             var claims = new List<Claim>
             {
                     new Claim(ClaimTypes.Name, u.Username),

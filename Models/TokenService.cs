@@ -20,19 +20,20 @@ namespace SCS.Api.Models
     public class TokenService : ITokenService
     {
         private string key;
+        private string lifetime;
         public TokenService(IConfiguration config)
         {
-            this.key = config.GetValue<string>("Jwt:Key");
+            this.key = config.GetValue<string>("Jwt:key");
+            this.lifetime =config.GetValue<string>("Jwt:lifetime");
         }
         public string GenerateAccessToken(IEnumerable<Claim> claims)
         {
-
             var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(5),
+                Expires = DateTime.UtcNow.AddMinutes(double.Parse(this.lifetime)),
                 SigningCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256),
                 Issuer = "sergiug.space",
                 Audience = "sergiug.space"
