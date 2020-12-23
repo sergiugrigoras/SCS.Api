@@ -23,11 +23,13 @@ namespace SCS.Api.Controllers
     {
         private readonly AppDbContext _context;
         private string _storageUrl;
+        private string _storageSize;
 
         public FsoController(AppDbContext userContext, IConfiguration configuration)
         {
             this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
             this._storageUrl = configuration.GetValue<string>("Storage:url");
+            this._storageSize = configuration.GetValue<string>("Storage:size");
         }
 
         [HttpGet("getuserdrive")]
@@ -37,12 +39,30 @@ namespace SCS.Api.Controllers
 
             if (user == null)
             {
-                return NotFound();
+                return Unauthorized();
             }
             else
             {
                 var fso = await _context.FileSystemObjects.FindAsync(user.DriveId);
                 return Ok(new Fso(fso));
+            }
+        }
+
+        [HttpGet("getuserdiskinfo")]
+        public async Task<IActionResult> GetUserDiskInfo()
+        {
+            var user = _context.Users.Find(GetJti());
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+            else
+            {
+                var usedBytes = await GetFsoSizeAsync((int)user.DriveId);
+                var totalBytes = long.Parse(this._storageSize);
+                var diskUsed = Math.Round(usedBytes*100.0/totalBytes);
+                return Ok(new { usedBytes = usedBytes.ToString(), totalBytes = totalBytes.ToString(), diskUsed = diskUsed.ToString()});
             }
         }
         [HttpGet("fullpath/{id}")]
@@ -359,6 +379,25 @@ namespace SCS.Api.Controllers
         private string GetJti()
         {
             return HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
+        }
+
+        private async Task<long> GetFsoSizeAsync(int id)
+        {
+            long bytesCount = 0;
+            var fso = await _context.FileSystemObjects.FindAsync(id);
+            if (!fso.IsFolder)
+            {
+                bytesCount = (long)fso.FileSize;
+            }
+            else
+            {
+                var content = await _context.FileSystemObjects.Where(f => f.ParentId == fso.Id).ToListAsync();
+                foreach (var f in content)
+                {
+                    bytesCount += await GetFsoSizeAsync(f.Id);
+                }
+            }
+            return bytesCount;
         }
     }
 }

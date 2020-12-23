@@ -17,6 +17,7 @@ namespace SCS.Api.Models
 
         public virtual DbSet<FileSystemObject> FileSystemObjects { get; set; }
         public virtual DbSet<User> Users { get; set; }
+        public virtual DbSet<Note> Notes { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -80,6 +81,21 @@ namespace SCS.Api.Models
                     .WithMany(p => p.Users)
                     .HasForeignKey(d => d.DriveId)
                     .HasConstraintName("FK_Fso");
+            });
+
+            modelBuilder.Entity<Note>(entity =>
+            {
+                entity.Property(e => e.Color).HasMaxLength(50);
+
+                entity.Property(e => e.CreationDate).HasColumnType("datetime");
+
+                entity.Property(e => e.ModificationDate).HasColumnType("datetime");
+
+                entity.Property(e => e.Title).HasMaxLength(255);
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(255);
             });
 
             OnModelCreatingPartial(modelBuilder);
