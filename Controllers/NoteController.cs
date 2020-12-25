@@ -31,7 +31,7 @@ namespace SCS.Api.Controllers
             {
                 return Unauthorized();
             }
-            var notes = await _context.Notes.Where(n => n.UserId == user.Id).ToListAsync();
+            var notes = await _context.Notes.Where(n => n.UserId == user.Id).OrderByDescending(c => c.ModificationDate).ToListAsync();
             var result = new List<NoteDTO>();
             foreach (var n in notes)
             {
@@ -46,7 +46,6 @@ namespace SCS.Api.Controllers
             note.CreationDate = DateTime.Now;
             note.ModificationDate = DateTime.Now;
             note.UserId = GetJti();
-            note.Color = "#ffffff";
             await _context.Notes.AddAsync(note);
             await _context.SaveChangesAsync();
             return Ok(new NoteDTO(note));
