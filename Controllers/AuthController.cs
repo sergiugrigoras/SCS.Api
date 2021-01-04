@@ -34,11 +34,19 @@ namespace SCS.Api.Controllers
                 return BadRequest("Invalid client request");
             }
 
-            var u = _context.Users.FirstOrDefault(x => x.Username == user.Username);
+            User u;
+            if (user.Username != "")
+            {
+                u = _context.Users.FirstOrDefault(x => x.Username == user.Username);
+            }
+            else
+            { 
+                u = _context.Users.FirstOrDefault(x => x.Email == user.Email);
+            }
 
             if (u == null || !BC.Verify(user.Password, u.Password))
             {
-                return Unauthorized();
+                return NotFound();
             }
 
             var claims = new List<Claim>
@@ -121,7 +129,7 @@ namespace SCS.Api.Controllers
         [HttpPost("uniqueusername")]
         public bool UniqueUsername([FromBody] Usr user)
         {
-            var u = _context.Users.FirstOrDefault(u => u.Username == user.Username);
+            var u = _context.Users.FirstOrDefault(u => u.Username.ToLower() == user.Username.ToLower());
             if (u != null)
             {
                 return false;
@@ -131,8 +139,25 @@ namespace SCS.Api.Controllers
             
         }
 
+        [HttpPost("uniqueemail")]
+        public bool UniqueEmail([FromBody] EmailAddress email)
+        {
+            var u = _context.Users.FirstOrDefault(u => u.Email.ToLower() == email.Email.ToLower());
+            if (u != null)
+            {
+                return false;
+            }
+            else
+                return true;
+
+        }
+
         public class Usr {
             public string Username { get; set; }
+        }
+
+        public class EmailAddress { 
+            public string Email { get; set; }
         }
     }
 }
