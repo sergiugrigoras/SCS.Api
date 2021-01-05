@@ -18,6 +18,7 @@ namespace SCS.Api.Models
         public virtual DbSet<FileSystemObject> FileSystemObjects { get; set; }
         public virtual DbSet<User> Users { get; set; }
         public virtual DbSet<Note> Notes { get; set; }
+        public virtual DbSet<ResetToken> ResetTokens { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -92,6 +93,19 @@ namespace SCS.Api.Models
                 entity.Property(e => e.ModificationDate).HasColumnType("datetime");
 
                 entity.Property(e => e.Title).HasMaxLength(255);
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(255);
+            });
+
+            modelBuilder.Entity<ResetToken>(entity =>
+            {
+                entity.Property(e => e.ExpirationDate).HasColumnType("datetime");
+
+                entity.Property(e => e.TokenHash)
+                    .IsRequired()
+                    .HasMaxLength(255);
 
                 entity.Property(e => e.UserId)
                     .IsRequired()

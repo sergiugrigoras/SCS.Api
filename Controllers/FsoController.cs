@@ -362,7 +362,7 @@ namespace SCS.Api.Controllers
                 }
                 catch (Exception ex)
                 {
-                    
+                    throw ex;
                 }
             }
         }

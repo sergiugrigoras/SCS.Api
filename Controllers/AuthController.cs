@@ -27,41 +27,41 @@ namespace SCS.Api.Controllers
         }
 
         [HttpPost, Route("login")]
-        public IActionResult Login([FromBody] User user)
+        public IActionResult Login([FromBody] User requestUser)
         {
-            if (user == null)
+            if (requestUser == null)
             {
                 return BadRequest("Invalid client request");
             }
 
-            User u;
-            if (user.Username != "")
+            User user;
+            if (requestUser.Username != "")
             {
-                u = _context.Users.FirstOrDefault(x => x.Username == user.Username);
+                user = _context.Users.FirstOrDefault(x => x.Username.ToLower() == requestUser.Username.ToLower());
             }
             else
             { 
-                u = _context.Users.FirstOrDefault(x => x.Email == user.Email);
+                user = _context.Users.FirstOrDefault(x => x.Email.ToLower() == requestUser.Email.ToLower());
             }
 
-            if (u == null || !BC.Verify(user.Password, u.Password))
+            if (user == null || !BC.Verify(requestUser.Password, user.Password))
             {
                 return NotFound();
             }
 
             var claims = new List<Claim>
             {
-                    new Claim(ClaimTypes.Name, u.Username),
-                    new Claim(JwtRegisteredClaimNames.Email,u.Email),
-                    new Claim(JwtRegisteredClaimNames.Jti,u.Id),
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(JwtRegisteredClaimNames.Email,user.Email),
+                    new Claim(JwtRegisteredClaimNames.Jti,user.Id),
                     //new Claim(ClaimTypes.Role, "Manager")
             };
 
             var accessToken = _tokenService.GenerateAccessToken(claims);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
-            u.RefreshToken = refreshToken;
-            u.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
             _context.SaveChanges();
 
             return Ok(new
