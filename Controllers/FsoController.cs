@@ -61,8 +61,8 @@ namespace SCS.Api.Controllers
             {
                 var usedBytes = await GetFsoSizeAsync((int)user.DriveId);
                 var totalBytes = long.Parse(this._storageSize);
-                var diskUsed = Math.Round(usedBytes*100.0/totalBytes);
-                return Ok(new { usedBytes = usedBytes.ToString(), totalBytes = totalBytes.ToString(), diskUsed = diskUsed.ToString()});
+                var diskUsed = Math.Round(usedBytes * 100.0 / totalBytes);
+                return Ok(new { usedBytes = usedBytes.ToString(), totalBytes = totalBytes.ToString(), diskUsed = diskUsed.ToString() });
             }
         }
         [HttpGet("fullpath/{id}")]
@@ -92,15 +92,15 @@ namespace SCS.Api.Controllers
         {
             FileSystemObject fso = await _context.FileSystemObjects.FindAsync(id);
             if (fso == null)
-            { 
+            {
                 return NotFound();
             }
 
-            if (! await IsOwnerAsync(id))
+            if (!await IsOwnerAsync(id))
             {
                 return Forbid();
             }
-            
+
             if (fso.IsFolder)
             {
                 var result = await _context.FileSystemObjects.Where(f => f.ParentId == fso.Id).ToListAsync();
@@ -124,7 +124,7 @@ namespace SCS.Api.Controllers
             {
                 return Forbid();
             }
-            
+
             return Ok(new Fso(fso));
 
         }
@@ -201,7 +201,7 @@ namespace SCS.Api.Controllers
                                 {
                                     return BadRequest();
                                 }*/
-                
+
 
                 var pathToSave = Path.Combine(_storageUrl, GetJti());
                 if (!Directory.Exists(pathToSave))
@@ -272,7 +272,7 @@ namespace SCS.Api.Controllers
             }
             else
             {
-                
+
                 ZipArchive archive = new ZipArchive(ms, ZipArchiveMode.Create, true);
                 foreach (var fso in fsoList)
                 {
@@ -335,7 +335,7 @@ namespace SCS.Api.Controllers
             var fso = await _context.FileSystemObjects.FindAsync(id);
             if (!fso.IsFolder)
             {
-                var fullPath = Path.Combine(Path.Combine(_storageUrl, GetJti()),fso.FileName);
+                var fullPath = Path.Combine(Path.Combine(_storageUrl, GetJti()), fso.FileName);
                 _context.FileSystemObjects.Remove(fso);
                 await _context.SaveChangesAsync();
                 DeleteFile(fullPath);
@@ -373,7 +373,7 @@ namespace SCS.Api.Controllers
 
             var fso = await _context.FileSystemObjects.FindAsync(id);
             while (fso.ParentId != null)
-            { 
+            {
                 fso = await _context.FileSystemObjects.FindAsync(fso.ParentId);
             }
             if (fso.Id == user.DriveId)
@@ -994,4 +994,3 @@ namespace SCS.Api.Controllers
         }
     }
 }
-

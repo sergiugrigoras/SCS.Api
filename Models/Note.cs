@@ -12,5 +12,7 @@ namespace SCS.Api.Models
         public DateTime CreationDate { get; set; }
         public DateTime ModificationDate { get; set; }
         public string Color { get; set; }
+        public string Type { get; set; }
+        public string ShareKey { get; set; }
     }
 }

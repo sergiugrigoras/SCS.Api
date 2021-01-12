@@ -87,6 +87,8 @@ namespace SCS.Api.Models
             modelBuilder.Entity<Note>(entity =>
             {
                 entity.Property(e => e.Color).HasMaxLength(50);
+                entity.Property(e => e.Type).HasMaxLength(50);
+                entity.Property(e => e.ShareKey).HasMaxLength(50);
 
                 entity.Property(e => e.CreationDate).HasColumnType("datetime");
 

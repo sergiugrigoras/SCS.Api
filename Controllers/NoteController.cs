@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace SCS.Api.Controllers
@@ -21,6 +22,24 @@ namespace SCS.Api.Controllers
         public NoteController(AppDbContext userContext)
         {
             this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        }
+
+        
+        [HttpPost("{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetNoteAsync(int id, [FromBody] ShareKey shareKey)
+        {
+            var note = await _context.Notes.FindAsync(id);
+            if (note == null)
+            {
+                return NotFound();
+            }
+            if (note.ShareKey != shareKey.Key && note.UserId != GetJti())
+            {
+                return Forbid();
+            }
+
+            return new JsonResult(new NoteDTO(note));
         }
 
         [HttpGet("getall")]
@@ -69,6 +88,7 @@ namespace SCS.Api.Controllers
             await _context.SaveChangesAsync();
             return Ok(new NoteDTO(note));
         }
+
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteNote(int id)
         {
@@ -85,29 +105,71 @@ namespace SCS.Api.Controllers
             await _context.SaveChangesAsync();
             return Ok();
         }
+
+        [HttpPost("share")]
+        public async Task<IActionResult> ShareNoteAsync([FromBody] Note sharedNote)
+        {
+            var note = await _context.Notes.FindAsync(sharedNote.Id);
+            if (note == null)
+            {
+                return NotFound();
+            }
+            if (note.UserId != GetJti())
+            {
+                return Forbid();
+            }
+            if (note.ShareKey == null)
+            {
+                var randomNumber = new byte[8];
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(randomNumber);
+                }
+                var shareKey = Convert.ToBase64String(randomNumber).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+                note.ShareKey = shareKey;
+            }
+            
+            await _context.SaveChangesAsync();
+            return Ok(new { note.ShareKey });
+        }
         private string GetJti()
         {
-            return HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
-        }
-
-        public class NoteDTO
-        {
-            public int Id { get; set; }
-            public string Title { get; set; }
-            public string Body { get; set; }
-            public DateTime CreationDate { get; set; }
-            public DateTime ModificationDate { get; set; }
-            public string Color { get; set; }
-
-            public NoteDTO(Note note)
+            if (HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti) == null)
             {
-                this.Id = note.Id;
-                this.Title = note.Title;
-                this.Body = note.Body;
-                this.CreationDate = note.CreationDate;
-                this.ModificationDate = note.ModificationDate;
-                this.Color = note.Color;
+                return null;
+            }
+            else
+            { 
+            return HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
             }
         }
+
+        
+    }
+    public class NoteDTO
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Body { get; set; }
+        public DateTime CreationDate { get; set; }
+        public DateTime ModificationDate { get; set; }
+        public string Color { get; set; }
+        public string Type { get; set; }
+
+        public NoteDTO(Note note)
+        {
+            this.Id = note.Id;
+            this.Title = note.Title;
+            this.Body = note.Body;
+            this.CreationDate = note.CreationDate;
+            this.ModificationDate = note.ModificationDate;
+            this.Color = note.Color;
+            this.Type = note.Type;
+        }
+    }
+
+    public class ShareKey
+    {
+        public string Key { get; set; }
     }
 }
