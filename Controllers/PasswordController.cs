@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Net.Mail;
+using SCS.Api.Services;
 
 namespace SCS.Api.Controllers
 {
@@ -23,11 +24,13 @@ namespace SCS.Api.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ITokenService _tokenService;
+        private readonly IMailService _mailService;
 
-        public PasswordController(ITokenService tokenService, AppDbContext userContext)
+        public PasswordController(AppDbContext userContext, ITokenService tokenService, IMailService mailService)
         {
-            this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
-            this._tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _context = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _mailService = mailService ?? throw new ArgumentNullException(nameof(mailService));
         }
 
         [HttpPost, Route("change")]
@@ -91,11 +94,13 @@ namespace SCS.Api.Controllers
             await _context.ResetTokens.AddAsync(resetToken);
             await _context.SaveChangesAsync();
 
-            /*var url = $@"mailto:{user.Email} - {Request.Scheme}://{Request.Host}/password/reset?token={token}&id={resetToken.Id}";*/
-/*            System.IO.File.WriteAllText(@"C:\tmp\resetToken.txt", $"Hello, \n\nPlease use below link to reset your password\n{Request.Scheme}://{Request.Host}/password/reset?token={token}&id={resetToken.Id}");*/
-            
-            sendEmail(user.Email, "Password reset instructions", $"Hello, \n\nPlease use below link to reset your password\n{Request.Scheme}://{Request.Host}/password/reset?token={token}&id={resetToken.Id}");
-            return Ok( new { mail = Regex.Replace(user.Email, @"(?<=[\w]{1})[\w-\._\+%]*(?=[\w]{2}@)", m => new string('*', m.Length)) });
+            _mailService.SendEmail(
+                                    new MailAddress(user.Email),
+                                    new MailAddress("support@mail.sergiug.space", "SCS Support"),
+                                    "Password reset instructions",
+                                    $"Hello, \n\nPlease use below link to reset your password\n{Request.Scheme}://{Request.Host}/password/reset?token={token}&id={resetToken.Id}"
+            );
+            return Ok(new { mail = Regex.Replace(user.Email, @"(?<=[\w]{1})[\w-\._\+%]*(?=[\w]{2}@)", m => new string('*', m.Length)) });
         }
 
         [AllowAnonymous]
@@ -135,25 +140,7 @@ namespace SCS.Api.Controllers
             }
         }
 
-        private static void sendEmail(string toEmailAddress, string emailSubject, string emailBody)
-        {
-            MailAddress to = new MailAddress(toEmailAddress);
-            MailAddress from = new MailAddress("support@mail.sergiug.space", "SCS Support");
-
-            MailMessage message = new MailMessage(from, to);
-            message.Subject = emailSubject;
-            message.Body = emailBody;
-
-            SmtpClient client = new SmtpClient("localhost", 25);
-            try
-            {
-                client.Send(message);
-            }
-            catch (SmtpException ex)
-            {
-                throw ex;
-            }
-        }
+        
     }
 
     public class Password

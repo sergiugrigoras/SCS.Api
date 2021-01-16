@@ -14,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using SCS.Api.Models;
+using SCS.Api.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,7 +32,8 @@ namespace SCS.Api
         }
 
         public IConfiguration Configuration { get; }
-        private string key;
+        private string _key;
+        private string _issuer;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -59,7 +61,8 @@ namespace SCS.Api
                 options.MaxRequestBodySize = 1073741824; // Limit on request body size
             });
 
-            key = Configuration.GetValue<string>("Jwt:Key");
+            _key = Configuration.GetValue<string>("Jwt:Key");
+            _issuer = Configuration.GetValue<string>("Jwt:Issuer");
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(x =>
             {
                 x.RequireHttpsMetadata = false;
@@ -67,16 +70,19 @@ namespace SCS.Api
                 x.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_key)),
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
-                    ValidIssuer = "sergiug.space",
-                    ValidAudience = "sergiug.space"
+                    ValidIssuer = _issuer,
+                    ValidAudience = _issuer
                 };
             });
 
             services.AddTransient<ITokenService, TokenService>();
+            services.AddTransient<IMailService, MailService>();
+            services.AddTransient<IFsoService, FsoService>();
+            services.AddTransient<IUserService, UserService>();
 
             services.AddControllers();
         }

@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SCS.Api.Models
+namespace SCS.Api.Services
 {
     public interface ITokenService
     {
@@ -19,24 +19,26 @@ namespace SCS.Api.Models
     }
     public class TokenService : ITokenService
     {
-        private string key;
-        private string lifetime;
+        private string _key;
+        private string _lifetime;
+        private string _issuer;
         public TokenService(IConfiguration config)
         {
-            this.key = config.GetValue<string>("Jwt:key");
-            this.lifetime =config.GetValue<string>("Jwt:lifetime");
+            this._key = config.GetValue<string>("Jwt:Key");
+            this._lifetime =config.GetValue<string>("Jwt:Lifetime");
+            this._issuer = config.GetValue<string>("Jwt:Issuer");
         }
         public string GenerateAccessToken(IEnumerable<Claim> claims)
         {
-            var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+            var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_key));
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(double.Parse(this.lifetime)),
+                Expires = DateTime.UtcNow.AddMinutes(double.Parse(this._lifetime)),
                 SigningCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256),
-                Issuer = "sergiug.space",
-                Audience = "sergiug.space"
+                Issuer = _issuer,
+                Audience = _issuer
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
@@ -60,7 +62,7 @@ namespace SCS.Api.Models
                 ValidateAudience = false, //you might want to validate the audience and issuer depending on your use case
                 ValidateIssuer = false,
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_key)),
                 ValidateLifetime = false //here we are saying that we don't care about the token's expiration date
             };
             var tokenHandler = new JwtSecurityTokenHandler();

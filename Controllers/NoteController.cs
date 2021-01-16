@@ -1,11 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using SCS.Api.Models;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -24,7 +27,6 @@ namespace SCS.Api.Controllers
             this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
         }
 
-        
         [HttpPost("{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetNoteAsync(int id, [FromBody] ShareKey shareKey)
