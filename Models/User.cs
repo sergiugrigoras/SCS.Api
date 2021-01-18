@@ -15,4 +15,16 @@ namespace SCS.Api.Models
 
         public virtual FileSystemObject Drive { get; set; }
     }
+
+    public class Password
+    {
+        public string OldPassword { get; set; }
+        public string NewPassword { get; set; }
+    }
+    public class PasswordResetRequest
+    {
+        public int TokenId { get; set; }
+        public string Token { get; set; }
+        public string NewPassword { get; set; }
+    }
 }

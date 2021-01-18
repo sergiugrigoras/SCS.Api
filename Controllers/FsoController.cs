@@ -22,19 +22,15 @@ namespace SCS.Api.Controllers
     [ApiController]
     public class FsoController : ControllerBase
     {
-        private readonly AppDbContext _context;
         private readonly IFsoService _fsoService;
         private readonly IUserService _userService;
-        private readonly string _storageUrl;
         private readonly string _storageSize;
 
-        public FsoController(AppDbContext userContext, IConfiguration configuration, IFsoService fsoService, IUserService userService)
+        public FsoController(IConfiguration configuration, IFsoService fsoService, IUserService userService)
         {
-            this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
-            this._storageUrl = configuration.GetValue<string>("Storage:url");
             this._storageSize = configuration.GetValue<string>("Storage:size");
-            _fsoService = fsoService;
-            _userService = userService;
+            _fsoService = fsoService ?? throw new ArgumentNullException(nameof(fsoService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         }
 
         [HttpGet("getuserdrive")]
@@ -71,7 +67,7 @@ namespace SCS.Api.Controllers
                 return Ok(new { usedBytes = usedBytes.ToString(), totalBytes = totalBytes.ToString(), diskUsed = diskUsed.ToString() });
             }
         }
-        
+
         [HttpGet("fullpath/{id}")]
         public async Task<IActionResult> GetFsoFullPathAsync(int id)
         {
@@ -81,7 +77,7 @@ namespace SCS.Api.Controllers
             {
                 return NotFound();
             }
-            if (! await _fsoService.CheckOwnerAsync(fso,user))
+            if (!await _fsoService.CheckOwnerAsync(fso, user))
             {
                 return Forbid();
             }
@@ -101,7 +97,7 @@ namespace SCS.Api.Controllers
                 return NotFound();
             }
 
-            if (! await _fsoService.CheckOwnerAsync(fso, user))
+            if (!await _fsoService.CheckOwnerAsync(fso, user))
             {
                 return Forbid();
             }
@@ -121,13 +117,13 @@ namespace SCS.Api.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetAsync(int id)
         {
-            FileSystemObject fso = await _context.FileSystemObjects.FindAsync(id);
+            FileSystemObject fso = await _fsoService.GetFsoByIdAsync(id);
             User user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
             if (fso == null)
             {
                 return NotFound();
             }
-            if (!await _fsoService.CheckOwnerAsync(fso,user))
+            if (!await _fsoService.CheckOwnerAsync(fso, user))
             {
                 return Forbid();
             }
@@ -144,7 +140,7 @@ namespace SCS.Api.Controllers
             {
                 return BadRequest();
             }
-            if (! await _fsoService.CheckOwnerAsync(parent, user))
+            if (!await _fsoService.CheckOwnerAsync(parent, user))
             {
                 return Forbid();
             }
@@ -188,7 +184,7 @@ namespace SCS.Api.Controllers
             foreach (var fsoId in fsoIdArr)
             {
                 var fso = await _fsoService.GetFsoByIdAsync(int.Parse(fsoId));
-                if (await _fsoService.CheckOwnerAsync(fso,user))
+                if (await _fsoService.CheckOwnerAsync(fso, user))
                 {
                     await _fsoService.DeleteFsoAsync(fso, user);
                 }
@@ -200,9 +196,9 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> UploadAsync()
         {
             var parentId = Request.Form["rootId"];
-            var root = await  _fsoService.GetFsoByIdAsync(int.Parse(parentId));
+            var root = await _fsoService.GetFsoByIdAsync(int.Parse(parentId));
             var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
-            if (!await _fsoService.CheckOwnerAsync(root,user))
+            if (!await _fsoService.CheckOwnerAsync(root, user))
             {
                 return Forbid();
             }
@@ -212,9 +208,9 @@ namespace SCS.Api.Controllers
                 var result = new List<FsoDTO>();
                 foreach (var file in files)
                 {
-                    var fileName = await _fsoService.CreateFileAsync(file,user);
+                    var fileName = await _fsoService.CreateFileAsync(file, user);
                     var fsoName = ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
-                    var fso = await _fsoService.CreateFsoAsync(fsoName,fileName,file.Length,false,root.Id);
+                    var fso = await _fsoService.CreateFsoAsync(fsoName, fileName, file.Length, false, root.Id);
                     result.Add(_fsoService.ToDTO(fso));
                 }
                 return new JsonResult(result);
@@ -238,7 +234,7 @@ namespace SCS.Api.Controllers
             {
                 return BadRequest();
             }
-            if (! await _fsoService.CheckOwnerAsync(root, user))
+            if (!await _fsoService.CheckOwnerAsync(root, user))
             {
                 return Forbid();
             }
@@ -256,10 +252,9 @@ namespace SCS.Api.Controllers
             }
             var extension = Path.GetExtension(fsoList[0].Name);
 
-            var result = await _fsoService.GetFileAsync(root, fsoList, user);
+            var stream = await _fsoService.GetFileAsync(root, fsoList, user);
 
-            return File(result, contentType);
-
+            return File(stream, contentType);
         }
     }
 }

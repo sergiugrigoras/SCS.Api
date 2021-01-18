@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SCS.Api.Models
 {
-    public partial class ResetToken
+    public class ResetToken
     {
         public int Id { get; set; }
         public string UserId { get; set; }

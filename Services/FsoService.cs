@@ -25,7 +25,6 @@ namespace SCS.Api.Services
         List<FsoDTO> ToDTO(List<FileSystemObject> list);
         Task DeleteFsoAsync(FileSystemObject fso, User user);
         Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long fileSize, bool isFolder, int parentId);
-        void DeleteFile(FileSystemObject fso, User user);
         Task<string> CreateFileAsync(IFormFile file, User user);
         Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user);
         public string GetMimeType(string extension);
@@ -755,21 +754,7 @@ namespace SCS.Api.Services
             return fileName;
         }
 
-        public void DeleteFile(FileSystemObject fso, User user)
-        {
-            var fileFullPath = Path.Combine(_storageUrl, user.Id, fso.FileName);
-            if (System.IO.File.Exists(fileFullPath))
-            {
-                try
-                {
-                    System.IO.File.Delete(fileFullPath);
-                }
-                catch (Exception ex)
-                {
-                    throw ex;
-                }
-            }
-        }
+
 
         public async Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user)
         {
@@ -824,6 +809,22 @@ namespace SCS.Api.Services
             }
         }
 
+        private void DeleteFile(FileSystemObject fso, User user)
+        {
+            var fileFullPath = Path.Combine(_storageUrl, user.Id, fso.FileName);
+            if (System.IO.File.Exists(fileFullPath))
+            {
+                try
+                {
+                    System.IO.File.Delete(fileFullPath);
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+            }
+        }
+
         public string GetMimeType(string extension)
         {
             if (extension == null)
@@ -839,6 +840,7 @@ namespace SCS.Api.Services
 
             return _mappings.TryGetValue(extension, out mime) ? mime : "application/octet-stream";
         }
+
 
     }
 }

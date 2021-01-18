@@ -50,7 +50,8 @@ namespace SCS.Api
                 });
             });
 
-            services.Configure<FormOptions>(o => {
+            services.Configure<FormOptions>(o =>
+            {
                 o.ValueLengthLimit = int.MaxValue;
                 o.MultipartBodyLengthLimit = int.MaxValue;
                 o.MultipartHeadersLengthLimit = int.MaxValue;
@@ -83,6 +84,7 @@ namespace SCS.Api
             services.AddTransient<IMailService, MailService>();
             services.AddTransient<IFsoService, FsoService>();
             services.AddTransient<IUserService, UserService>();
+            services.AddTransient<INoteService, NoteService>();
 
             services.AddControllers();
         }
@@ -110,7 +112,7 @@ namespace SCS.Api
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
             app.UseHttpsRedirection();
-            
+
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();

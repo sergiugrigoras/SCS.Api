@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using SCS.Api.Models;
+using SCS.Api.Services;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,158 +21,107 @@ namespace SCS.Api.Controllers
     [ApiController]
     public class NoteController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IUserService _userService;
+        private readonly INoteService _noteService;
 
-        public NoteController(AppDbContext userContext)
+        public NoteController(AppDbContext context, IUserService userService, INoteService noteService)
         {
-            this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+            _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
         }
 
         [HttpPost("{id}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetNoteAsync(int id, [FromBody] ShareKey shareKey)
+        public async Task<IActionResult> GetNoteAsync(int id, [FromBody] NoteShareKey shareKey)
         {
-            var note = await _context.Notes.FindAsync(id);
+            var note = await _noteService.GetNoteByIdAsync(id);
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
             if (note == null)
             {
                 return NotFound();
             }
-            if (note.ShareKey != shareKey.Key && note.UserId != GetJti())
+
+            if ((user == null && note.ShareKey == shareKey.Key) || (user != null && user.Id == note.UserId))
+            {
+                return new JsonResult(_noteService.ToDTO(note));
+            }
+            else
             {
                 return Forbid();
             }
-
-            return new JsonResult(new NoteDTO(note));
         }
 
         [HttpGet("getall")]
         public async Task<IActionResult> GetNotesAsync()
         {
-            var user = await _context.Users.FindAsync(GetJti());
-            if (user == null)
-            {
-                return Unauthorized();
-            }
-            var notes = await _context.Notes.Where(n => n.UserId == user.Id).OrderByDescending(c => c.ModificationDate).ToListAsync();
-            var result = new List<NoteDTO>();
-            foreach (var n in notes)
-            {
-                result.Add(new NoteDTO(n));
-            }
-            return new JsonResult(result);
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var notes = await _noteService.GetAllNotesByUserAsync(user);
+
+            return new JsonResult(_noteService.ToDTO(notes));
         }
 
         [HttpPost("add")]
         public async Task<IActionResult> AddNote([FromBody] Note note)
         {
-            note.CreationDate = DateTime.Now;
-            note.ModificationDate = DateTime.Now;
-            note.UserId = GetJti();
-            await _context.Notes.AddAsync(note);
-            await _context.SaveChangesAsync();
-            return Ok(new NoteDTO(note));
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            await _noteService.CreateNoteAsync(note, user);
+            return Ok(_noteService.ToDTO(note));
         }
 
         [HttpPut("update")]
-        public async Task<IActionResult> UpdateNote([FromBody] Note newNote)
+        public async Task<IActionResult> UpdateNote([FromBody] Note request)
         {
-            var note =await _context.Notes.FindAsync(newNote.Id);
+            var note = await _noteService.GetNoteByIdAsync(request.Id);
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
             if (note == null)
             {
                 return NotFound();
             }
-            if (note.UserId != GetJti())
+            if (note.UserId != user.Id)
             {
                 return Forbid();
             }
-            note.ModificationDate = DateTime.Now;
-            note.Title = newNote.Title;
-            note.Body = newNote.Body;
-            await _context.SaveChangesAsync();
-            return Ok(new NoteDTO(note));
+            await _noteService.UpdateNoteAsync(note, request.Title, request.Body);
+
+            return Ok(_noteService.ToDTO(note));
         }
 
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteNote(int id)
         {
-            var note = await _context.Notes.FindAsync(id);
+            var note = await _noteService.GetNoteByIdAsync(id);
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
             if (note == null)
             {
                 return NotFound();
             }
-            if (note.UserId != GetJti())
+            if (note.UserId != user.Id)
             {
                 return Forbid();
             }
-            _context.Notes.Remove(note);
-            await _context.SaveChangesAsync();
+            await _noteService.DeleteNoteAsync(note);
             return Ok();
         }
 
         [HttpPost("share")]
         public async Task<IActionResult> ShareNoteAsync([FromBody] Note sharedNote)
         {
-            var note = await _context.Notes.FindAsync(sharedNote.Id);
+            var note = await _noteService.GetNoteByIdAsync(sharedNote.Id);
+            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
             if (note == null)
             {
                 return NotFound();
             }
-            if (note.UserId != GetJti())
+            if (note.UserId != user.Id)
             {
                 return Forbid();
             }
             if (note.ShareKey == null)
             {
-                var randomNumber = new byte[8];
-                using (var rng = RandomNumberGenerator.Create())
-                {
-                    rng.GetBytes(randomNumber);
-                }
-                var shareKey = Convert.ToBase64String(randomNumber).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-                note.ShareKey = shareKey;
+                await _noteService.AddShareKeyAsync(note);
             }
-            
-            await _context.SaveChangesAsync();
             return Ok(new { note.ShareKey });
         }
-        private string GetJti()
-        {
-            if (HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti) == null)
-            {
-                return null;
-            }
-            else
-            { 
-            return HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
-            }
-        }
-
-        
-    }
-    public class NoteDTO
-    {
-        public int Id { get; set; }
-        public string Title { get; set; }
-        public string Body { get; set; }
-        public DateTime CreationDate { get; set; }
-        public DateTime ModificationDate { get; set; }
-        public string Color { get; set; }
-        public string Type { get; set; }
-
-        public NoteDTO(Note note)
-        {
-            this.Id = note.Id;
-            this.Title = note.Title;
-            this.Body = note.Body;
-            this.CreationDate = note.CreationDate;
-            this.ModificationDate = note.ModificationDate;
-            this.Color = note.Color;
-            this.Type = note.Type;
-        }
     }
 
-    public class ShareKey
-    {
-        public string Key { get; set; }
-    }
 }

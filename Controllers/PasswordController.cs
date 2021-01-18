@@ -35,9 +35,9 @@ namespace SCS.Api.Controllers
 
         [HttpPost, Route("change")]
         public async Task<IActionResult> ChangePasswordAsync([FromBody] Password pass)
-        { 
+        {
             var userId = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
-            var user = await  _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
                 return Unauthorized();
@@ -47,7 +47,7 @@ namespace SCS.Api.Controllers
             {
                 user.Password = BC.HashPassword(pass.NewPassword);
                 await _context.SaveChangesAsync();
-                return Ok(new { message = "Success"});
+                return Ok(new { message = "Success" });
             }
             else
             {
@@ -85,7 +85,7 @@ namespace SCS.Api.Controllers
                 rng.GetBytes(randomNumber);
             }
             var token = Convert.ToBase64String(randomNumber).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-            
+
             var resetToken = new ResetToken();
             resetToken.UserId = user.Id;
             resetToken.TokenHash = BC.HashPassword(token);
@@ -117,7 +117,7 @@ namespace SCS.Api.Controllers
                 var user = await _context.Users.FindAsync(resetToken.UserId);
                 user.Password = BC.HashPassword(requestReset.NewPassword);
                 resetToken.TokenUsed = true;
-                
+
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Username),
@@ -139,19 +139,5 @@ namespace SCS.Api.Controllers
                 });
             }
         }
-
-        
-    }
-
-    public class Password
-    {
-        public string OldPassword { get; set; }
-        public string NewPassword { get; set; }
-    }
-    public class PasswordResetRequest
-    {
-        public int TokenId { get; set; }
-        public string Token { get; set; }
-        public string NewPassword { get; set; }
     }
 }

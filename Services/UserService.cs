@@ -24,9 +24,17 @@ namespace SCS.Api.Services
 
         public async Task<User> GetUserFromPrincipalAsync(ClaimsPrincipal principal)
         {
-            var id = principal.FindFirst(JwtRegisteredClaimNames.Jti).Value;
-            var user = await _context.Users.FindAsync(id);
-            return user;
+            if (principal.FindFirst(JwtRegisteredClaimNames.Jti) == null)
+            {
+                return null;
+            }
+            else
+            {
+                var id = principal.FindFirst(JwtRegisteredClaimNames.Jti).Value;
+                var user = await _context.Users.FindAsync(id);
+                return user;
+            }
+
         }
     }
 }
