@@ -19,146 +19,91 @@ namespace SCS.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly ITokenService _tokenService;
-        private readonly AppDbContext _context;
+        private readonly IUserService _userService;
+        private readonly IFsoService _fsoService;
 
-        public AuthController(ITokenService tokenService, AppDbContext userContext)
+        public AuthController(ITokenService tokenService, IUserService userService, IFsoService fsoService, AppDbContext userContext)
         {
-            this._tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
-            this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+            _fsoService = fsoService ?? throw new ArgumentNullException(nameof(fsoService));
         }
 
         [HttpPost, Route("login")]
-        public IActionResult Login([FromBody] User requestUser)
+        public async Task<IActionResult> LoginAsync([FromBody] User request)
         {
-            if (requestUser == null)
+            if (request == null)
             {
                 return BadRequest("Invalid client request");
             }
 
             User user;
-            if (requestUser.Username != "")
+            if (request.Username != "")
             {
-                user = _context.Users.FirstOrDefault(x => x.Username.ToLower() == requestUser.Username.ToLower());
+                user = await _userService.GetUserByNameAsync(request.Username);
             }
             else
-            { 
-                user = _context.Users.FirstOrDefault(x => x.Email.ToLower() == requestUser.Email.ToLower());
+            {
+                user = await _userService.GetUserByEmailAsync(request.Email);
             }
 
-            if (user == null || !BC.Verify(requestUser.Password, user.Password))
+            if (user == null || !BC.Verify(request.Password, user.Password))
             {
                 return NotFound();
             }
 
-            var claims = new List<Claim>
-            {
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(JwtRegisteredClaimNames.Email,user.Email),
-                    new Claim(JwtRegisteredClaimNames.Jti,user.Id),
-                    //new Claim(ClaimTypes.Role, "Manager")
-            };
+            var claims = _userService.GetUserClaims(user);
 
             var accessToken = _tokenService.GenerateAccessToken(claims);
             var refreshToken = _tokenService.GenerateRefreshToken();
-
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
-            _context.SaveChanges();
+            await _userService.UpdateUserAsync(user);
 
-            return Ok(new
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-            });
+            return Ok(new TokenApiModel(accessToken, refreshToken));
         }
+
         [HttpPost, Route("register")]
-        public IActionResult Register([FromBody] User user)
+        public async Task<IActionResult> RegisterAsync([FromBody] User request)
         {
-            if (user == null)
+            if (request == null || String.IsNullOrEmpty(request.Username) || String.IsNullOrEmpty(request.Email) || String.IsNullOrEmpty(request.Password))
             {
                 return BadRequest("Invalid client request");
             }
 
-            var u = _context.Users.FirstOrDefault(u => u.Username == user.Username);
-            if (u != null)
+            if (await _userService.GetUserByNameAsync(request.Username) != null || await _userService.GetUserByEmailAsync(request.Email) != null)
             {
-                return BadRequest("Invalid client request");
+                return BadRequest("Invalid client request, not unique");
             }
-            
-            var fso = new FileSystemObject
-            {
-                Name = "root",
-                ParentId = null,
-                IsFolder = true,
-                FileName = null,
-                FileSize = null,
-                Date = DateTime.Now
-            };
-            _context.FileSystemObjects.Add(fso);
-            _context.SaveChanges();
 
-            var userId = Guid.NewGuid().ToString();
-
-            var claims = new List<Claim>
-            {
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                    new Claim(JwtRegisteredClaimNames.Jti,userId),
-                    //new Claim(ClaimTypes.Role, "Manager")
-            };
-
+            var userDriveFso = await _fsoService.CreateFsoAsync("root", null, null, true, null);
+            request.Id = Guid.NewGuid().ToString();
+            var claims = _userService.GetUserClaims(request);
             var accessToken = _tokenService.GenerateAccessToken(claims);
             var refreshToken = _tokenService.GenerateRefreshToken();
+            var hashPassword = BC.HashPassword(request.Password);
 
-            var password = BC.HashPassword(user.Password);
-            user.Password = password;
+            request.Password = hashPassword;
+            request.RefreshToken = refreshToken;
+            request.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
+            request.DriveId = userDriveFso.Id;
 
-            user.Id = userId;
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
-            user.DriveId = fso.Id;
-            
-            _context.Users.Add(user);
-            _context.SaveChanges();
+            await _userService.CreateUserAsync(request);
 
-            return Ok(new
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-            });
+            return Ok(new TokenApiModel(accessToken, refreshToken));
         }
-        [HttpPost("uniqueusername")]
-        public bool UniqueUsername([FromBody] Usr user)
+
+        [HttpPost("checkunique")]
+        public async Task<bool> UniqueUsernameAsync([FromBody] User request)
         {
-            var u = _context.Users.FirstOrDefault(u => u.Username.ToLower() == user.Username.ToLower());
-            if (u != null)
+            if (await _userService.GetUserByNameAsync(request.Username) != null || await _userService.GetUserByEmailAsync(request.Email) != null)
             {
                 return false;
             }
             else
-                return true;
-            
-        }
-
-        [HttpPost("uniqueemail")]
-        public bool UniqueEmail([FromBody] EmailAddress email)
-        {
-            var u = _context.Users.FirstOrDefault(u => u.Email.ToLower() == email.Email.ToLower());
-            if (u != null)
             {
-                return false;
-            }
-            else
                 return true;
-
-        }
-
-        public class Usr {
-            public string Username { get; set; }
-        }
-
-        public class EmailAddress { 
-            public string Email { get; set; }
+            }
         }
     }
 }

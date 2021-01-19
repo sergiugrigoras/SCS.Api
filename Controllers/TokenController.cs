@@ -15,19 +15,19 @@ namespace SCS.Api.Controllers
     public class TokenController : ControllerBase
     {
         private readonly ITokenService _tokenService;
-        private readonly AppDbContext _context;
+        private readonly IUserService _userService;
 
-        public TokenController(ITokenService tokenService, AppDbContext userContext)
+        public TokenController(ITokenService tokenService, IUserService userService, AppDbContext context)
         {
-            this._tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
-            this._context = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         }
 
         [HttpPost]
         [Route("refresh")]
-        public IActionResult Refresh([FromBody] TokenApiModel tokenApiModel)
+        public async Task<IActionResult> RefreshAsync([FromBody] TokenApiModel tokenApiModel)
         {
-            if (tokenApiModel is null || tokenApiModel.AccessToken == String.Empty || tokenApiModel.RefreshToken == String.Empty )
+            if (tokenApiModel is null || tokenApiModel.AccessToken == String.Empty || tokenApiModel.RefreshToken == String.Empty)
             {
                 return BadRequest("Invalid client request");
             }
@@ -36,9 +36,7 @@ namespace SCS.Api.Controllers
             string refreshToken = tokenApiModel.RefreshToken;
 
             var principal = _tokenService.GetPrincipalFromExpiredToken(accessToken);
-            var username = principal.Identity.Name;
-
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
+            var user = await _userService.GetUserFromPrincipalAsync(principal);
             if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.Now)
             {
                 return BadRequest("Invalid client request");
@@ -47,31 +45,27 @@ namespace SCS.Api.Controllers
             var newAccessToken = _tokenService.GenerateAccessToken(principal.Claims);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
             user.RefreshToken = newRefreshToken;
-            _context.SaveChanges();
+            await _userService.UpdateUserAsync(user);
 
-            return new ObjectResult(new
-            {
-                accessToken = newAccessToken,
-                refreshToken = newRefreshToken
-            });
+            var result = new TokenApiModel(newAccessToken, newRefreshToken);
+            return new JsonResult(result);
         }
+
         [HttpDelete, Authorize]
         [Route("revoke")]
-        public IActionResult Revoke()
+        public async Task<IActionResult> RevokeAsync()
         {
-            var username = User.Identity.Name;
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
-            if (user == null) return BadRequest();
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
+            if (user == null)
+            {
+                return BadRequest();
+            }
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = null;
-            _context.SaveChanges();
+            await _userService.UpdateUserAsync(user);
             return Ok();
         }
     }
 
-    public class TokenApiModel
-    {
-        public string AccessToken { get; set; }
-        public string RefreshToken { get; set; }
-    }
+
 }

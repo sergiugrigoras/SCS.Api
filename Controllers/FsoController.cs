@@ -36,7 +36,7 @@ namespace SCS.Api.Controllers
         [HttpGet("getuserdrive")]
         public async Task<IActionResult> GetUserDriveIdAsync()
         {
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
 
             if (user == null)
             {
@@ -53,7 +53,7 @@ namespace SCS.Api.Controllers
         [HttpGet("getuserdiskinfo")]
         public async Task<IActionResult> GetUserDiskInfo()
         {
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
 
             if (user == null)
             {
@@ -72,7 +72,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> GetFsoFullPathAsync(int id)
         {
             var fso = await _fsoService.GetFsoByIdAsync(id);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (fso == null)
             {
                 return NotFound();
@@ -91,7 +91,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> GetFolderContentAsync(int id)
         {
             FileSystemObject fso = await _fsoService.GetFsoByIdAsync(id);
-            User user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            User user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (fso == null)
             {
                 return NotFound();
@@ -118,7 +118,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> GetAsync(int id)
         {
             FileSystemObject fso = await _fsoService.GetFsoByIdAsync(id);
-            User user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            User user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (fso == null)
             {
                 return NotFound();
@@ -134,7 +134,7 @@ namespace SCS.Api.Controllers
         [HttpPost("addfolder")]
         public async Task<IActionResult> AddAsync([FromBody] FileSystemObject fso)
         {
-            User user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            User user = await _userService.GetUserFromPrincipalAsync(this.User);
             FileSystemObject parent = await _fsoService.GetFsoByIdAsync((int)fso.ParentId);
             if (fso == null || !fso.IsFolder)
             {
@@ -156,7 +156,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> RenameAsync([FromBody] FileSystemObject request)
         {
             FileSystemObject fso = await _fsoService.GetFsoByIdAsync(request.Id);
-            User user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            User user = await _userService.GetUserFromPrincipalAsync(this.User);
 
             if (fso == null)
             {
@@ -178,7 +178,7 @@ namespace SCS.Api.Controllers
             {
                 return BadRequest();
             }
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             string[] fsoIdArr = fsoIdcsv.Split(',');
 
             foreach (var fsoId in fsoIdArr)
@@ -197,7 +197,7 @@ namespace SCS.Api.Controllers
         {
             var parentId = Request.Form["rootId"];
             var root = await _fsoService.GetFsoByIdAsync(int.Parse(parentId));
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (!await _fsoService.CheckOwnerAsync(root, user))
             {
                 return Forbid();
@@ -228,7 +228,7 @@ namespace SCS.Api.Controllers
             var fsoIdcsv = Request.Form["fsoIdcsv"].ToString();
             var rootId = int.Parse(Request.Form["rootId"].ToString());
             var root = await _fsoService.GetFsoByIdAsync(rootId);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
 
             if (string.IsNullOrEmpty(fsoIdcsv))
             {

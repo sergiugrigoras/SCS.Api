@@ -22,31 +22,29 @@ namespace SCS.Api.Controllers
     [ApiController]
     public class PasswordController : ControllerBase
     {
-        private readonly AppDbContext _context;
         private readonly ITokenService _tokenService;
         private readonly IMailService _mailService;
+        private readonly IUserService _userService;
 
-        public PasswordController(AppDbContext userContext, ITokenService tokenService, IMailService mailService)
+        public PasswordController(AppDbContext userContext, ITokenService tokenService, IMailService mailService, IUserService userService)
         {
-            _context = userContext ?? throw new ArgumentNullException(nameof(userContext));
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
             _mailService = mailService ?? throw new ArgumentNullException(nameof(mailService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         }
 
         [HttpPost, Route("change")]
         public async Task<IActionResult> ChangePasswordAsync([FromBody] Password pass)
         {
-            var userId = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti).Value;
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (user == null)
             {
                 return Unauthorized();
             }
-
             if (BC.Verify(pass.OldPassword, user.Password))
             {
                 user.Password = BC.HashPassword(pass.NewPassword);
-                await _context.SaveChangesAsync();
+                await _userService.UpdateUserAsync(user);
                 return Ok(new { message = "Success" });
             }
             else
@@ -57,21 +55,21 @@ namespace SCS.Api.Controllers
 
         [AllowAnonymous]
         [HttpPost, Route("token")]
-        public async Task<IActionResult> GenerateResetTokenAsync([FromBody] User requestUser)
+        public async Task<IActionResult> GenerateResetTokenAsync([FromBody] User request)
         {
-            if (requestUser == null)
+            if (request == null)
             {
                 return BadRequest("Invalid client request");
             }
 
             User user;
-            if (requestUser.Username != "")
+            if (request.Username != "")
             {
-                user = await _context.Users.FirstOrDefaultAsync(x => x.Username.ToLower() == requestUser.Username.ToLower());
+                user = await _userService.GetUserByNameAsync(request.Username);
             }
             else
             {
-                user = await _context.Users.FirstOrDefaultAsync(x => x.Email.ToLower() == requestUser.Email.ToLower());
+                user = await _userService.GetUserByEmailAsync(request.Email);
             }
 
             if (user == null)
@@ -79,64 +77,43 @@ namespace SCS.Api.Controllers
                 return NotFound("Invalid user");
             }
 
-            var randomNumber = new byte[64];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(randomNumber);
-            }
-            var token = Convert.ToBase64String(randomNumber).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-            var resetToken = new ResetToken();
-            resetToken.UserId = user.Id;
-            resetToken.TokenHash = BC.HashPassword(token);
-            resetToken.ExpirationDate = DateTime.Now.AddHours(1);
-
-            await _context.ResetTokens.AddAsync(resetToken);
-            await _context.SaveChangesAsync();
+            var token = _userService.GenerateToken();
+            var passwordResetToken = await _userService.CreatePasswordResetTokenAsync(user, token);
 
             _mailService.SendEmail(
                                     new MailAddress(user.Email),
                                     new MailAddress("support@mail.sergiug.space", "SCS Support"),
                                     "Password reset instructions",
-                                    $"Hello, \n\nPlease use below link to reset your password\n{Request.Scheme}://{Request.Host}/password/reset?token={token}&id={resetToken.Id}"
+                                    $"Hello, \n\nPlease use below link to reset your password\n{Request.Scheme}://{Request.Host}/password/reset?token={token}&id={passwordResetToken.Id}"
             );
             return Ok(new { mail = Regex.Replace(user.Email, @"(?<=[\w]{1})[\w-\._\+%]*(?=[\w]{2}@)", m => new string('*', m.Length)) });
         }
 
         [AllowAnonymous]
         [HttpPost, Route("reset")]
-        public async Task<IActionResult> ResetPasswordAsync([FromBody] PasswordResetRequest requestReset)
+        public async Task<IActionResult> ResetPasswordAsync([FromBody] PasswordResetRequest request)
         {
-            var resetToken = await _context.ResetTokens.FindAsync(requestReset.TokenId);
-            if (resetToken == null || resetToken.ExpirationDate <= DateTime.Now || resetToken.TokenUsed || !BC.Verify(requestReset.Token, resetToken.TokenHash))
+            var resetToken = await _userService.GetPasswordResetTokenByIdAsync(request.TokenId);
+            if (resetToken == null || resetToken.ExpirationDate <= DateTime.Now || resetToken.TokenUsed || !BC.Verify(request.Token, resetToken.TokenHash))
             {
                 return BadRequest();
             }
             else
             {
-                var user = await _context.Users.FindAsync(resetToken.UserId);
-                user.Password = BC.HashPassword(requestReset.NewPassword);
+                var user = await _userService.GetUserByIdAsync(resetToken.UserId);
+                user.Password = BC.HashPassword(request.NewPassword);
                 resetToken.TokenUsed = true;
 
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(JwtRegisteredClaimNames.Email,user.Email),
-                    new Claim(JwtRegisteredClaimNames.Jti,user.Id),
-                };
+                var claims = _userService.GetUserClaims(user);
 
                 var accessToken = _tokenService.GenerateAccessToken(claims);
                 var refreshToken = _tokenService.GenerateRefreshToken();
 
                 user.RefreshToken = refreshToken;
                 user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7);
-                await _context.SaveChangesAsync();
-
-                return Ok(new
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
-                });
+                await _userService.UpdateUserAsync(user);
+                await _userService.UpdatePasswordResetTokenAsync(resetToken);
+                return Ok(new TokenApiModel(accessToken, refreshToken));
             }
         }
     }

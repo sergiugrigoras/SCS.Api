@@ -24,7 +24,7 @@ namespace SCS.Api.Services
         FsoDTO ToDTO(FileSystemObject fso);
         List<FsoDTO> ToDTO(List<FileSystemObject> list);
         Task DeleteFsoAsync(FileSystemObject fso, User user);
-        Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long fileSize, bool isFolder, int parentId);
+        Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long? fileSize, bool isFolder, int? parentId);
         Task<string> CreateFileAsync(IFormFile file, User user);
         Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user);
         public string GetMimeType(string extension);
@@ -622,7 +622,7 @@ namespace SCS.Api.Services
             return false;
         }
 
-        public async Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long fileSize, bool isFolder, int parentId)
+        public async Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long? fileSize, bool isFolder, int? parentId)
         {
             FileSystemObject fso = new FileSystemObject();
             fso.Name = name;
@@ -656,7 +656,7 @@ namespace SCS.Api.Services
                 var fsoContent = await _context.FileSystemObjects.Where(f => f.ParentId == fso.Id).ToListAsync();
                 foreach (var f in fsoContent)
                 {
-                    await DeleteFsoAsync(f,user);
+                    await DeleteFsoAsync(f, user);
                 }
                 _context.FileSystemObjects.Remove(fso);
                 await _context.SaveChangesAsync();

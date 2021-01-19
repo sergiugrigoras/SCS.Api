@@ -25,7 +25,7 @@ namespace SCS.Api.Services
         public TokenService(IConfiguration config)
         {
             this._key = config.GetValue<string>("Jwt:Key");
-            this._lifetime =config.GetValue<string>("Jwt:Lifetime");
+            this._lifetime = config.GetValue<string>("Jwt:Lifetime");
             this._issuer = config.GetValue<string>("Jwt:Issuer");
         }
         public string GenerateAccessToken(IEnumerable<Claim> claims)
@@ -59,11 +59,11 @@ namespace SCS.Api.Services
         {
             var tokenValidationParameters = new TokenValidationParameters
             {
-                ValidateAudience = false, //you might want to validate the audience and issuer depending on your use case
+                ValidateAudience = false,
                 ValidateIssuer = false,
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_key)),
-                ValidateLifetime = false //here we are saying that we don't care about the token's expiration date
+                ValidateLifetime = false
             };
             var tokenHandler = new JwtSecurityTokenHandler();
             SecurityToken securityToken;

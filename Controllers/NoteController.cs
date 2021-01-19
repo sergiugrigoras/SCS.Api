@@ -35,7 +35,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> GetNoteAsync(int id, [FromBody] NoteShareKey shareKey)
         {
             var note = await _noteService.GetNoteByIdAsync(id);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (note == null)
             {
                 return NotFound();
@@ -54,7 +54,7 @@ namespace SCS.Api.Controllers
         [HttpGet("getall")]
         public async Task<IActionResult> GetNotesAsync()
         {
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             var notes = await _noteService.GetAllNotesByUserAsync(user);
 
             return new JsonResult(_noteService.ToDTO(notes));
@@ -63,7 +63,7 @@ namespace SCS.Api.Controllers
         [HttpPost("add")]
         public async Task<IActionResult> AddNote([FromBody] Note note)
         {
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             await _noteService.CreateNoteAsync(note, user);
             return Ok(_noteService.ToDTO(note));
         }
@@ -72,7 +72,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> UpdateNote([FromBody] Note request)
         {
             var note = await _noteService.GetNoteByIdAsync(request.Id);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (note == null)
             {
                 return NotFound();
@@ -90,7 +90,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> DeleteNote(int id)
         {
             var note = await _noteService.GetNoteByIdAsync(id);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (note == null)
             {
                 return NotFound();
@@ -107,7 +107,7 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> ShareNoteAsync([FromBody] Note sharedNote)
         {
             var note = await _noteService.GetNoteByIdAsync(sharedNote.Id);
-            var user = await _userService.GetUserFromPrincipalAsync(HttpContext.User);
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
             if (note == null)
             {
                 return NotFound();

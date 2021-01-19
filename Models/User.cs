@@ -16,6 +16,30 @@ namespace SCS.Api.Models
         public virtual FileSystemObject Drive { get; set; }
     }
 
+    public class TokenApiModel
+    {
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+
+        public TokenApiModel()
+        {
+        }
+        public TokenApiModel(string accessToken, string refreshToken)
+        {
+            AccessToken = accessToken;
+            RefreshToken = refreshToken;
+        }
+    }
+
+    public class PasswordResetToken
+    {
+        public int Id { get; set; }
+        public string UserId { get; set; }
+        public string TokenHash { get; set; }
+        public DateTime ExpirationDate { get; set; }
+        public bool TokenUsed { get; set; }
+    }
+
     public class Password
     {
         public string OldPassword { get; set; }

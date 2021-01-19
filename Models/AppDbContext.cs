@@ -18,7 +18,7 @@ namespace SCS.Api.Models
         public virtual DbSet<FileSystemObject> FileSystemObjects { get; set; }
         public virtual DbSet<User> Users { get; set; }
         public virtual DbSet<Note> Notes { get; set; }
-        public virtual DbSet<ResetToken> ResetTokens { get; set; }
+        public virtual DbSet<PasswordResetToken> ResetTokens { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -33,9 +33,9 @@ namespace SCS.Api.Models
         {
             modelBuilder.Entity<FileSystemObject>(entity =>
             {
-/*                entity.HasIndex(e => new { e.Name, e.ParentId })
-                    .HasName("uk_Path")
-                    .IsUnique();*/
+                /*                entity.HasIndex(e => new { e.Name, e.ParentId })
+                                    .HasName("uk_Path")
+                                    .IsUnique();*/
 
                 entity.Property(e => e.Id).HasColumnName("ID");
 
@@ -101,7 +101,7 @@ namespace SCS.Api.Models
                     .HasMaxLength(255);
             });
 
-            modelBuilder.Entity<ResetToken>(entity =>
+            modelBuilder.Entity<PasswordResetToken>(entity =>
             {
                 entity.Property(e => e.ExpirationDate).HasColumnType("datetime");
 
