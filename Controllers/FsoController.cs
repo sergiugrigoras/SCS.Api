@@ -24,13 +24,15 @@ namespace SCS.Api.Controllers
     {
         private readonly IFsoService _fsoService;
         private readonly IUserService _userService;
+        private readonly IShareService _shareService;
         private readonly string _storageSize;
 
-        public FsoController(IConfiguration configuration, IFsoService fsoService, IUserService userService)
+        public FsoController(IConfiguration configuration, IFsoService fsoService, IUserService userService, IShareService shareService)
         {
             this._storageSize = configuration.GetValue<string>("Storage:size");
             _fsoService = fsoService ?? throw new ArgumentNullException(nameof(fsoService));
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+            _shareService = shareService ?? throw new ArgumentNullException(nameof(shareService));
         }
 
         [HttpGet("getuserdrive")]
@@ -226,21 +228,19 @@ namespace SCS.Api.Controllers
         public async Task<IActionResult> DownloadAsync()
         {
             var fsoIdcsv = Request.Form["fsoIdcsv"].ToString();
-            var rootId = int.Parse(Request.Form["rootId"].ToString());
-            var root = await _fsoService.GetFsoByIdAsync(rootId);
             var user = await _userService.GetUserFromPrincipalAsync(this.User);
-
             if (string.IsNullOrEmpty(fsoIdcsv))
             {
                 return BadRequest();
             }
-            if (!await _fsoService.CheckOwnerAsync(root, user))
+            int[] fsoIdArray = Array.ConvertAll(fsoIdcsv.Split(','), int.Parse);
+            var fsoList = await _fsoService.GetFsoListByIdAsync(fsoIdArray);
+            var root = await _fsoService.CheckParentFso(fsoList);
+            if (root == null || !await _fsoService.CheckOwnerAsync(root, user))
             {
                 return Forbid();
             }
 
-            int[] fsoIdArray = Array.ConvertAll(fsoIdcsv.Split(','), int.Parse);
-            var fsoList = await _fsoService.GetFsoListByIdAsync(fsoIdArray);
             string contentType;
             if (fsoList.Count == 1 && !fsoList[0].IsFolder)
             {

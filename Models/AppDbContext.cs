@@ -19,7 +19,8 @@ namespace SCS.Api.Models
         public virtual DbSet<User> Users { get; set; }
         public virtual DbSet<Note> Notes { get; set; }
         public virtual DbSet<PasswordResetToken> ResetTokens { get; set; }
-
+        public virtual DbSet<SharedObject> SharedObjects { get; set; }
+        public virtual DbSet<Share> Shares { get; set; }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             /*if (!optionsBuilder.IsConfigured)
@@ -113,6 +114,30 @@ namespace SCS.Api.Models
                     .IsRequired()
                     .HasMaxLength(255);
             });
+
+            modelBuilder.Entity<SharedObject>(entity =>
+            {
+                entity.HasKey(e => new { e.ShareId, e.FsoId });
+
+                entity.HasOne(d => d.Share)
+                    .WithMany(p => p.SharedObjects)
+                    .HasForeignKey(d => d.ShareId)
+                    .HasConstraintName("FK_SharedFso_Shares");
+            });
+
+            modelBuilder.Entity<Share>(entity =>
+            {
+                entity.Property(e => e.PublicId)
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.Property(e => e.ShareDate).HasColumnType("datetime");
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(255);
+            });
+
 
             OnModelCreatingPartial(modelBuilder);
         }

@@ -85,6 +85,7 @@ namespace SCS.Api
             services.AddTransient<IFsoService, FsoService>();
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<INoteService, NoteService>();
+            services.AddTransient<IShareService, ShareService>();
 
             services.AddControllers();
         }

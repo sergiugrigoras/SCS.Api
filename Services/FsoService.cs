@@ -27,7 +27,8 @@ namespace SCS.Api.Services
         Task<FileSystemObject> CreateFsoAsync(string name, string fileName, long? fileSize, bool isFolder, int? parentId);
         Task<string> CreateFileAsync(IFormFile file, User user);
         Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user);
-        public string GetMimeType(string extension);
+        Task<FileSystemObject> CheckParentFso(List<FileSystemObject> fsoList);
+        string GetMimeType(string extension);
     }
     public class FsoService : IFsoService
     {
@@ -841,6 +842,34 @@ namespace SCS.Api.Services
             return _mappings.TryGetValue(extension, out mime) ? mime : "application/octet-stream";
         }
 
+        public async Task<FileSystemObject> CheckParentFso(List<FileSystemObject> fsoList)
+        {
+            if (fsoList == null)
+            {
+                return null;
+            }
+            var parent = await _context.FileSystemObjects.FindAsync(fsoList[0].ParentId);
+            if (parent == null)
+            {
+                return null;
+            }
+            bool sameParent = true;
+            foreach (var fso in fsoList)
+            {
+                if (fso.ParentId != parent.Id)
+                {
+                    sameParent = false;
+                }
+            }
+            if (sameParent)
+            {
+                return parent;
+            }
+            else
+            {
+                return null;
+            }
 
+        }
     }
 }
