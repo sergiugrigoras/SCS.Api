@@ -15,7 +15,7 @@ namespace SCS.Api.Services
     {
         Task<FileSystemObject> GetFsoByIdAsync(int id);
         Task<List<FileSystemObject>> GetFsoListByIdAsync(int[] idArray);
-        Task<long> GetFsoSizeAsync(int id);
+        Task<long> GetFsoSizeByIdAsync(int id);
         Task<bool> CheckOwnerAsync(FileSystemObject fso, User user);
         Task<List<FileSystemObject>> GetFsoFullPathAsync(FileSystemObject fso);
         Task<List<FileSystemObject>> GetFsoContentAsync(FileSystemObject fso);
@@ -28,6 +28,8 @@ namespace SCS.Api.Services
         Task<string> CreateFileAsync(IFormFile file, User user);
         Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user);
         Task<FileSystemObject> CheckParentFso(List<FileSystemObject> fsoList);
+
+        Task SetContentOfDTO(FsoDTO fsoDTO);
         string GetMimeType(string extension);
     }
     public class FsoService : IFsoService
@@ -697,7 +699,7 @@ namespace SCS.Api.Services
             return result;
         }
 
-        public async Task<long> GetFsoSizeAsync(int id)
+        public async Task<long> GetFsoSizeByIdAsync(int id)
         {
             long bytesCount = 0;
             var fso = await _context.FileSystemObjects.FindAsync(id);
@@ -710,7 +712,7 @@ namespace SCS.Api.Services
                 var content = await _context.FileSystemObjects.Where(f => f.ParentId == fso.Id).ToListAsync();
                 foreach (var f in content)
                 {
-                    bytesCount += await GetFsoSizeAsync(f.Id);
+                    bytesCount += await GetFsoSizeByIdAsync(f.Id);
                 }
             }
             return bytesCount;
@@ -870,6 +872,25 @@ namespace SCS.Api.Services
                 return null;
             }
 
+        }
+
+        public async Task SetContentOfDTO(FsoDTO fsoDTO)
+        {
+            if (fsoDTO.IsFolder)
+            {
+                fsoDTO.FileSize = await GetFsoSizeByIdAsync(fsoDTO.Id);
+                var folderContentList = await _context.FileSystemObjects.Where(f => f.ParentId == fsoDTO.Id).OrderBy(f => f.Name).OrderByDescending(f => f.IsFolder).ToListAsync();
+                fsoDTO.Content = new List<FsoDTO>();
+                foreach (var fso in folderContentList)
+                {
+                    var child = new FsoDTO(fso);
+                    if (child.IsFolder)
+                    {
+                        await SetContentOfDTO(child);
+                    }
+                    fsoDTO.Content.Add(child);
+                }
+            }
         }
     }
 }

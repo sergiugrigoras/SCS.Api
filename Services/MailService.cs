@@ -15,39 +15,39 @@ namespace SCS.Api.Services
     }
     public class MailService : IMailService
     {
-        private readonly IHostEnvironment _environment;
-        public MailService(IHostEnvironment env)
+        public void SendEmail(MailAddress toEmailAddress, MailAddress fromEmailAddress, string emailSubject, string emailBody)
         {
-            _environment = env;
+            MailMessage message = new MailMessage(fromEmailAddress, toEmailAddress);
+            message.Subject = emailSubject;
+            message.Body = emailBody;
+
+            SmtpClient client = new SmtpClient("localhost", 25);
+            try
+            {
+                client.Send(message);
+            }
+            catch (SmtpException ex)
+            {
+                throw ex;
+            }
+        }
+    }
+
+    public class DevMailService : IMailService
+    {
+        private readonly string _rootDir;
+        public DevMailService(string rootDir)
+        {
+            _rootDir = rootDir;
         }
         public void SendEmail(MailAddress toEmailAddress, MailAddress fromEmailAddress, string emailSubject, string emailBody)
         {
-            if (_environment.IsProduction())
+            var pathToSave = Path.Combine(_rootDir, "mails", "outbox");
+            if (!Directory.Exists(pathToSave))
             {
-                MailMessage message = new MailMessage(fromEmailAddress, toEmailAddress);
-                message.Subject = emailSubject;
-                message.Body = emailBody;
-
-                SmtpClient client = new SmtpClient("localhost", 25);
-                try
-                {
-                    client.Send(message);
-                }
-                catch (SmtpException ex)
-                {
-                    throw ex;
-                }
+                Directory.CreateDirectory(pathToSave);
             }
-
-            if (_environment.IsDevelopment())
-            {
-                var pathToSave = Path.Combine(_environment.ContentRootPath, "mails", "outbox");
-                if (!Directory.Exists(pathToSave))
-                {
-                    Directory.CreateDirectory(pathToSave);
-                }
-                File.WriteAllText(Path.Combine(pathToSave, toEmailAddress.Address.Replace("@", "_at_")),$"{emailSubject}\n{emailBody}");
-            }
+            File.WriteAllText(Path.Combine(pathToSave, toEmailAddress.Address.Replace("@", "_at_")), $"{emailSubject}\n{emailBody}");
         }
     }
 }

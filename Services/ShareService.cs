@@ -12,7 +12,13 @@ namespace SCS.Api.Services
     {
         Task<string> CreateShareAsync(List<FileSystemObject> fsoList, User user);
         Task<List<SharedObject>> GetShareContentAsync(Share share);
-        Task<Share> GetShareById(string id);
+        Task<Share> GetShareByIdAsync(string id);
+        Task<List<Share>> GetSharesByUserAsync(User user);
+        Task DeleteShareAsync(Share share);
+
+        ICollection<ShareDTO> ToDTO(ICollection<Share> shareList);
+        ShareDTO ToDTO(Share share);
+
     }
     public class ShareService : IShareService
     {
@@ -51,7 +57,13 @@ namespace SCS.Api.Services
             return key;
         }
 
-        public async Task<Share> GetShareById(string id)
+        public async Task DeleteShareAsync(Share share)
+        {
+            _context.Shares.Remove(share);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<Share> GetShareByIdAsync(string id)
         {
             var share = await _context.Shares.FirstOrDefaultAsync(s => s.PublicId == id);
             return share;
@@ -62,6 +74,27 @@ namespace SCS.Api.Services
 
             var list = await _context.SharedObjects.Where(s => s.ShareId == share.Id).ToListAsync();
             return list;
+        }
+
+        public async Task<List<Share>> GetSharesByUserAsync(User user)
+        {
+            var shareList = await _context.Shares.Where(s => s.UserId == user.Id).ToListAsync();
+            return shareList;
+        }
+
+        public ICollection<ShareDTO> ToDTO(ICollection<Share> shareList)
+        {
+            var result = new List<ShareDTO>();
+            foreach (var share in shareList)
+            {
+                result.Add(new ShareDTO(share));
+            }
+            return result;
+        }
+
+        public ShareDTO ToDTO(Share share)
+        {
+            return new ShareDTO(share);
         }
     }
 }

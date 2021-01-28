@@ -63,7 +63,7 @@ namespace SCS.Api.Controllers
             }
             else
             {
-                var usedBytes = await _fsoService.GetFsoSizeAsync((int)user.DriveId);
+                var usedBytes = await _fsoService.GetFsoSizeByIdAsync((int)user.DriveId);
                 var totalBytes = long.Parse(_storageSize);
                 var diskUsed = Math.Round(usedBytes * 100.0 / totalBytes);
                 return Ok(new { usedBytes = usedBytes.ToString(), totalBytes = totalBytes.ToString(), diskUsed = diskUsed.ToString() });

@@ -33,6 +33,7 @@ namespace SCS.Api.Models
         public string FileName { get; set; }
         public long? FileSize { get; set; }
         public DateTime Date { get; set; }
+        public ICollection<FsoDTO> Content { get; set; }
 
         public FsoDTO(FileSystemObject fso)
         {
@@ -45,4 +46,5 @@ namespace SCS.Api.Models
             Date = fso.Date;
         }
     }
+
 }
