@@ -22,7 +22,7 @@ namespace SCS.Api.Controllers
         private readonly IUserService _userService;
         private readonly IFsoService _fsoService;
 
-        public AuthController(ITokenService tokenService, IUserService userService, IFsoService fsoService, AppDbContext userContext)
+        public AuthController(ITokenService tokenService, IUserService userService, IFsoService fsoService)
         {
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -96,14 +96,7 @@ namespace SCS.Api.Controllers
         [HttpPost("checkunique")]
         public async Task<bool> UniqueUsernameAsync([FromBody] User request)
         {
-            if (await _userService.GetUserByNameAsync(request.Username) != null || await _userService.GetUserByEmailAsync(request.Email) != null)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+            return await _userService.GetUserByNameAsync(request.Username) == null && await _userService.GetUserByEmailAsync(request.Email) == null;
         }
     }
 }

@@ -28,6 +28,7 @@ namespace SCS.Api.Services
         Task<string> CreateFileAsync(IFormFile file, User user);
         Task<Stream> GetFileAsync(FileSystemObject root, List<FileSystemObject> fsoList, User user);
         Task<FileSystemObject> CheckParentFso(List<FileSystemObject> fsoList);
+        Task MoveFsoAsync(FileSystemObject fso, FileSystemObject destination);
 
         Task SetContentOfDTO(FsoDTO fsoDTO);
         string GetMimeType(string extension);
@@ -889,6 +890,44 @@ namespace SCS.Api.Services
                         await SetContentOfDTO(child);
                     }
                     fsoDTO.Content.Add(child);
+                }
+            }
+        }
+
+        public async Task MoveFsoAsync(FileSystemObject fso, FileSystemObject destination)
+        {
+            if ((fso != null && destination != null) && (fso.ParentId != destination.Id))
+            {
+
+                var destinationFullPath = await GetFsoFullPathAsync(destination);
+                if (destinationFullPath.Contains(fso))
+                {
+                    throw new FsoException("Destination is a subfolder of source");
+                }
+
+                var existingFso = await _context.FileSystemObjects.Where(f => f.ParentId == destination.Id).FirstOrDefaultAsync(f => f.Name == fso.Name);
+
+                if (existingFso == null)
+                {
+                    fso.ParentId = destination.Id;
+                    _context.FileSystemObjects.Update(fso);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    var counter = 1;
+                    var fsoNewName = Path.GetFileNameWithoutExtension(fso.Name) + $"({counter})";
+
+                    while (await _context.FileSystemObjects.Where(f => f.ParentId == destination.Id).FirstOrDefaultAsync(f => f.Name == fsoNewName + Path.GetExtension(fso.Name)) != null)
+                    {
+                        counter++;
+                        fsoNewName = Path.GetFileNameWithoutExtension(fso.Name) + $"({counter})";
+                    }
+
+                    fso.Name = fsoNewName +Path.GetExtension(fso.Name);
+                    fso.ParentId = destination.Id;
+                    _context.FileSystemObjects.Update(fso);
+                    await _context.SaveChangesAsync();
                 }
             }
         }

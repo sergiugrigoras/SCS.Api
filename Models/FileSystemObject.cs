@@ -47,4 +47,12 @@ namespace SCS.Api.Models
         }
     }
 
+    public class FsoException : Exception
+    {
+        public FsoException(string message):base(message)
+        {
+
+        }
+    }
+
 }

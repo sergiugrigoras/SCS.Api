@@ -193,6 +193,43 @@ namespace SCS.Api.Controllers
             }
             return Ok();
         }
+        [HttpPost("move")]
+        public async Task<IActionResult> MoveAsync(string fsoIdcsv, string destinationDirId)
+        {
+            if (string.IsNullOrWhiteSpace(fsoIdcsv))
+            {
+                return BadRequest();
+            }
+            var user = await _userService.GetUserFromPrincipalAsync(this.User);
+            
+            var destination = await _fsoService.GetFsoByIdAsync(int.Parse(destinationDirId));
+            if (! await _fsoService.CheckOwnerAsync(destination, user))
+            {
+                return Forbid();
+            }
+            string[] fsoIdArr = fsoIdcsv.Split(',');
+
+            var successList = new List<FsoDTO>();
+            var failList = new List<FsoDTO>();
+            foreach (var fsoId in fsoIdArr)
+            { 
+                var fso = await _fsoService.GetFsoByIdAsync(int.Parse(fsoId));
+                if (await _fsoService.CheckOwnerAsync(fso, user))
+                {
+                    try
+                    {
+                        await _fsoService.MoveFsoAsync(fso, destination);
+                        successList.Add(_fsoService.ToDTO(fso));
+                    }
+                    catch (FsoException)
+                    {
+                        failList.Add(_fsoService.ToDTO(fso));
+                    }
+                    
+                }
+            }
+            return Ok( new { success = successList, fail = failList });
+        }
 
         [HttpPost("upload"), DisableRequestSizeLimit]
         public async Task<IActionResult> UploadAsync()
